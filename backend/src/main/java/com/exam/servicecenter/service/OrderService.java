@@ -7,6 +7,7 @@ import com.exam.servicecenter.entity.EmployeeEntity;
 import com.exam.servicecenter.entity.OrderEntity;
 import com.exam.servicecenter.entity.ServiceEntity;
 import com.exam.servicecenter.enums.OrderStatus;
+import com.exam.servicecenter.exception.NotFoundException;
 import com.exam.servicecenter.repository.ClientRepository;
 import com.exam.servicecenter.repository.EmployeeRepository;
 import com.exam.servicecenter.repository.OrderRepository;
@@ -20,7 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +53,8 @@ public class OrderService {
     @Transactional
     public OrderResponseDto create(OrderRequestDto dto) {
         ClientEntity client = clientRepository.findById(dto.getClientId())
-                .orElseThrow(() -> new IllegalArgumentException("Клиент не найден"));
+                .orElseThrow(() -> new NotFoundException("Клиент с id " + dto.getClientId() + " не найден"));
+
         EmployeeEntity employee = resolveEmployee(dto.getEmployeeId());
         Set<ServiceEntity> services = resolveServices(dto.getServiceIds());
 
@@ -70,14 +75,16 @@ public class OrderService {
     @Transactional
     public OrderResponseDto update(Long id, OrderRequestDto dto) {
         OrderEntity order = getOrder(id);
+
         order.setTitle(dto.getTitle().trim());
         order.setDescription(dto.getDescription());
         order.setStatus(dto.getStatus() == null ? order.getStatus() : dto.getStatus());
         order.setDueDate(dto.getDueDate());
         order.setClient(clientRepository.findById(dto.getClientId())
-                .orElseThrow(() -> new IllegalArgumentException("Клиент не найден")));
+                .orElseThrow(() -> new NotFoundException("Клиент с id " + dto.getClientId() + " не найден")));
         order.setEmployee(resolveEmployee(dto.getEmployeeId()));
         order.setServices(resolveServices(dto.getServiceIds()));
+
         return toDto(orderRepository.save(order));
     }
 
@@ -88,22 +95,46 @@ public class OrderService {
 
     private OrderEntity getOrder(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Заказ с id " + id + " не найден"));
+                .orElseThrow(() -> new NotFoundException("Заказ с id " + id + " не найден"));
     }
 
     private EmployeeEntity resolveEmployee(Long employeeId) {
         if (employeeId == null) {
             return null;
         }
+
         return employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("Сотрудник не найден"));
+                .orElseThrow(() -> new NotFoundException("Сотрудник с id " + employeeId + " не найден"));
     }
 
     private Set<ServiceEntity> resolveServices(Set<Long> serviceIds) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             return new HashSet<>();
         }
-        return new HashSet<>(serviceRepository.findAllById(serviceIds));
+
+        Set<Long> requestedIds = serviceIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (requestedIds.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<ServiceEntity> services = serviceRepository.findAllById(requestedIds);
+
+        Set<Long> foundIds = services.stream()
+                .map(ServiceEntity::getId)
+                .collect(Collectors.toSet());
+
+        Set<Long> notFoundIds = requestedIds.stream()
+                .filter(id -> !foundIds.contains(id))
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        if (!notFoundIds.isEmpty()) {
+            throw new NotFoundException("Услуги с id " + notFoundIds + " не найдены");
+        }
+
+        return new HashSet<>(services);
     }
 
     private OrderResponseDto toDto(OrderEntity order) {
@@ -111,6 +142,7 @@ public class OrderService {
                 .map(ServiceEntity::getId)
                 .sorted()
                 .toList();
+
         List<String> serviceTitles = order.getServices().stream()
                 .map(ServiceEntity::getTitle)
                 .sorted()

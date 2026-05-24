@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,7 +24,7 @@ public class OrderController {
                                           @RequestParam(required = false) Long clientId,
                                           @RequestParam(required = false) Long employeeId,
                                           @RequestParam(required = false) Long serviceId,
-                                          Pageable pageable) {
+                                          @PageableDefault(size = 5, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         return orderService.findAll(search, status, clientId, employeeId, serviceId, pageable);
     }
 

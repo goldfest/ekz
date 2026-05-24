@@ -1,7 +1,9 @@
 package com.exam.servicecenter.service;
 
 import com.exam.servicecenter.dto.ClientRequestDto;
+import com.exam.servicecenter.dto.ClientResponseDto;
 import com.exam.servicecenter.entity.ClientEntity;
+import com.exam.servicecenter.exception.NotFoundException;
 import com.exam.servicecenter.repository.ClientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,17 +19,18 @@ public class ClientService {
     private final ClientRepository clientRepository;
 
     @Transactional(readOnly = true)
-    public Page<ClientEntity> findAll(String search, Boolean active, Pageable pageable) {
-        return clientRepository.findFiltered(search, active, pageable);
+    public Page<ClientResponseDto> findAll(String search, Boolean active, Pageable pageable) {
+        return clientRepository.findFiltered(search, active, pageable)
+                .map(this::toDto);
     }
 
     @Transactional(readOnly = true)
-    public ClientEntity findById(Long id) {
-        return getClient(id);
+    public ClientResponseDto findById(Long id) {
+        return toDto(getClient(id));
     }
 
     @Transactional
-    public ClientEntity create(ClientRequestDto dto) {
+    public ClientResponseDto create(ClientRequestDto dto) {
         ClientEntity client = ClientEntity.builder()
                 .fullName(dto.getFullName().trim())
                 .phone(dto.getPhone().trim())
@@ -36,27 +39,47 @@ public class ClientService {
                 .active(dto.getActive() == null || dto.getActive())
                 .registeredAt(LocalDate.now())
                 .build();
-        return clientRepository.save(client);
+
+        return toDto(clientRepository.save(client));
     }
 
     @Transactional
-    public ClientEntity update(Long id, ClientRequestDto dto) {
+    public ClientResponseDto update(Long id, ClientRequestDto dto) {
         ClientEntity client = getClient(id);
+
         client.setFullName(dto.getFullName().trim());
         client.setPhone(dto.getPhone().trim());
         client.setEmail(dto.getEmail());
         client.setAddress(dto.getAddress());
-        client.setActive(dto.getActive() == null || dto.getActive());
-        return clientRepository.save(client);
+
+        if (dto.getActive() != null) {
+            client.setActive(dto.getActive());
+        }
+
+        return toDto(clientRepository.save(client));
     }
 
     @Transactional
     public void delete(Long id) {
-        clientRepository.delete(getClient(id));
+        ClientEntity client = getClient(id);
+        client.setActive(false);
+        clientRepository.save(client);
     }
 
     private ClientEntity getClient(Long id) {
         return clientRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Клиент с id " + id + " не найден"));
+                .orElseThrow(() -> new NotFoundException("Клиент с id " + id + " не найден"));
+    }
+
+    private ClientResponseDto toDto(ClientEntity client) {
+        return ClientResponseDto.builder()
+                .id(client.getId())
+                .fullName(client.getFullName())
+                .phone(client.getPhone())
+                .email(client.getEmail())
+                .address(client.getAddress())
+                .active(client.isActive())
+                .registeredAt(client.getRegisteredAt())
+                .build();
     }
 }
