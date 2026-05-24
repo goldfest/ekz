@@ -1,0 +1,52 @@
+:root {
+  --app-bg: #f5f7fb;
+}
+
+body {
+  background: var(--app-bg);
+}
+
+.page-card {
+  border: 0;
+  border-radius: 1rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(15, 23, 42, 0.08);
+}
+
+.entity-card {
+  border: 0;
+  border-radius: 1rem;
+  box-shadow: 0 0.3rem 1rem rgba(15, 23, 42, 0.08);
+}
+
+.badge-soft {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.hero {
+  background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+  color: #fff;
+  border-radius: 1.4rem;
+}
+
+.form-section {
+  background: #fff;
+  border-radius: 1rem;
+  border: 1px solid #e9ecef;
+}
+
+.table > :not(caption) > * > * {
+  vertical-align: middle;
+}
+
+@media (max-width: 767.98px) {
+  .desktop-table {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-cards {
+    display: none;
+  }
+}
